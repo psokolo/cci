@@ -8,11 +8,29 @@ with open(file_path, 'r') as file:
 
 def check_codes_exact(icd_codes: Union[str, List[str]], code_group: dict) -> bool:
     """
-        Checks if the codes in the 'icd_codes' are present in the 'code_group' according to specific conditions.\n
-        The conditions are either 'any' or 'both'. The former means that the function returns True if any of the codes
-        in the 'icd_codes' is present in a category. The latter means that the function only returns True, if codes from both subgroups
-        of a category are present.
+        Checks if the codes in 'icd_codes' are present in 'code_group' based on the specified condition.
+        
+        Parameters
+        ----------
+        icd_codes : Union[str, List[str]]
+            A single ICD code or a list of ICD codes to check against the code group.
+        code_group : dict
+            A dictionary containing a "condition" key (which can be 'any' or 'both') and a list of 'codes' or 'code groups' to check.
+            The structure of 'code_group' is:
+                {
+                    "condition": "any" | "both",
+                    "codes": [list of codes or groups of codes]
+                }
+            
+        Returns
+        -------
+        bool:
+            True if the condition is met (either 'any' or 'both'), False otherwise.
+        
+        The 'any' condition returns True if any code in 'icd_codes' is present in the 'codes' list.
+        The 'both' condition returns True only if codes from each subgroup within 'codes' are present in 'icd_codes'.
     """
+
     # Ensure icd_codes is a list
     if isinstance(icd_codes, str):
         icd_codes = [icd_codes]
@@ -28,12 +46,29 @@ def check_codes_exact(icd_codes: Union[str, List[str]], code_group: dict) -> boo
 
 def check_codes_startswith(icd_codes: Union[str, List[str]], code_group: dict) -> bool:
     """
-        Checks if the codes in 'icd_codes' start with any of the codes in 'code_group'.
-        This function returns True if any of the ICD codes in 'icd_codes' start with a code from the 'codes' list in 'code_group'.
-        The conditions are either 'any' or 'both'. The former means that the function returns True if any of the codes
-        in the 'icd_codes' is present in a category. The latter means that the function only returns True, if codes from both subgroups
-        of a category are present.
+        Checks if any codes in 'icd_codes' start with a prefix from the 'code_group' based on the specified condition.
+
+        Parameters
+        ----------
+        icd_codes : Union[str, List[str]]
+            A single ICD code or a list of ICD codes to check for prefix matches.
+        code_group : dict
+            A dictionary containing a "condition" key (either 'any' or 'both') and a list of 'codes' or 'code groups' to check for prefix matches.
+            The structure of 'code_group' is:
+                {
+                    "condition": "any" | "both",
+                    "codes": [list of codes or groups of codes]
+                }
+
+        Returns
+        -------
+        bool:
+            True if the condition is met ('any' or 'both'), False otherwise.
+
+        The 'any' condition returns True if any of the codes in 'icd_codes' starts with any prefix from the 'codes' list.
+        The 'both' condition returns True only if there is at least one matching prefix in each subgroup of the 'codes' list.
     """
+
     # Ensure icd_codes is a list
     if isinstance(icd_codes, str):
         icd_codes = [icd_codes]
@@ -49,32 +84,39 @@ def check_codes_startswith(icd_codes: Union[str, List[str]], code_group: dict) -
         return all(any(code.startswith(prefix) for code in icd_codes) for group in codes for prefix in group)
     return False
 
-def calculate_score(*, icd_codes: Union[str, list], mapping:str = "icd2024gm", list_cat:bool = False, exact_codes:bool = False) -> Union[int,str]:
-    ''' Calculates the charlson comorbidity score (Deyo modification)
-        The score is calculated based on the mapping file
-        By default it uses the ICD10-2024-GM codes. As of the time of creating the script, the mapping of Quan et al. is also available.
-        For information about the mapping check the paper ___ 
-    
+def calculate_score(*, icd_codes: Union[str, list], mapping:str = "icd2024gm", exact_codes:bool = False) -> tuple:
+    '''
+        Calculates the Charlson comorbidity score (Deyo modification) based on a given set of ICD codes and a mapping file.
+
+        The score is determined by matching the ICD codes provided to specific categories in a predefined mapping file.
+        By default, it uses the ICD10-2024-GM codes, but alternate mappings (such as Quan's modification) are also available.
+
         Parameters
         ----------
-            icd_codes : str|list
-                list of the ICD-Codes that should be scored
-            mapping : str
-                optional: version identifier of the ICD-Code mapping to be used.\n
-                          valid options are:\n
-                           "icd2024gm"      : the mapping based on the 2024 version of German Modification ICD 10 Codes,
-                                              mapped by the authors of the algorithm\n
-                           "icd2024gm_quan" : the mapping based on the 2024 version of German Modification ICD 10 Codes,
-                                              as implemented by Quan in 2025 (s. paper ___ for more details)
-            list_cat : boolean
-                if True, prints out a list of categories that scored points. Default is False
+        icd_codes : Union[str, list]
+            A single ICD code or a list of ICD codes that will be evaluated for comorbidities.
+        mapping : str, optional
+            Identifier for the version of the ICD code mapping to be used. Valid options include:
+            - "icd2024gm"         : the 2024 version of the German Modification ICD-10 codes, mapped by the algorithm authors.
+            - "icd2024gm_quan"    : a variation based on Quan's implementation, applied to the 2024 ICD-10 GM codes.
+            - "icd2024_quan_orig" : Quan's mapping, as presented and explained in the following paper , DOI: 10.1097/01.mlr.0000182534.19832.83
+        exact_codes : bool, optional
+            If True, checks for exact matches between ICD codes and the mapping data. If False, checks for prefix matches. Default is False, meaning
+            that if any of the codes in the selected mapping list starts with any of the input codes, it scores
 
         Returns
         -------
-        integer: from 0 to 29
-        will return none if the input is invalid \n
-        list: (optional, if list_cat set to True) a list of categories that scored points 
-    '''  
+        tuple: (score: int, categories: list)
+        - score: An integer representing the total Charlson comorbidity score (ranges from 0 to 29).
+        - categories: A list of categories (comorbidities) that scored based on the input ICD codes.
+
+        Notes
+        -----
+        - Each category has a 'weight' in the mapping file which contributes to the total score.
+        - If multiple comorbidities are present (e.g., neoplasm and metastatic disease), only the more severe condition contributes to the score.
+        - The 'depends_on' field in the mapping file specifies these hierarchies. For example, if 'dm_simple' depends on 'dm_complicated', 
+        the simpler condition will not contribute to the score if the more severe condition is present.
+    '''
     
     # According to the value of the 'mapping' argument, choose the right mapping
     data = mappingdata[mapping]
@@ -88,7 +130,8 @@ def calculate_score(*, icd_codes: Union[str, list], mapping:str = "icd2024gm", l
     score = 0
     scored_categories = set()
 
-    # Iterate over all the categories to check if any of the codes in a given category is in the input
+    # Iterate over all the categories to check if any of the codes in a given category is in the input using either the prefix-based matching
+    # or exact codes, as according to the exact_codes parameter
 
     if exact_codes == True:
         for category, details in data.items():
@@ -114,7 +157,7 @@ def calculate_score(*, icd_codes: Union[str, list], mapping:str = "icd2024gm", l
     ## if 'dm_complicated' is not present. 
     ## 
     ## To achieve this, for every category in the set 'scored_categories' the algorithm checks, if this category has an element 'depends_on'
-    ## and if that element (the more severe version of the condition) is present in the set, the milder one is removed.
+    ## and if that element (the more severe version of the condition) is present in the set, the milder one is removed.    
     for category in list(scored_categories):  # Iterate over a copy of the set to allow modification
         details = data.get(category, {})
         if "depends_on" in details:
@@ -126,13 +169,8 @@ def calculate_score(*, icd_codes: Union[str, list], mapping:str = "icd2024gm", l
     for category in scored_categories:
         score += data[category]["weight"]
 
-    # Return the total score and, if list_cat was set to True, the list of scored categories
-    if list_cat == True:
-        print("The categories scored according to the given ICD Codes list are:")
-        for x in list(scored_categories):
-            print(data[x]['name'])
-    return score
+    # Return the score and the list of scored categories
+    return score, list(scored_categories)
 
-calculate_score(icd_codes =["K74.7101"],mapping="icd2024gm", list_cat=True)
-calculate_score(["K74.71"],mapping="icd2024gm_quan", list_cat = True)
-calculate_score(["K76.7", "I98.2", "K71.2", "K73", "C01", "C80", "B20", "U60.3", "G45.02", "I27.8", "J41.0", "M05.01", "F02.3", "E10.2", "E10.0", "I09.9", "N18.9", "I21.0", "G82.1", "K25.2", "I77.1"], mapping="icd2024gm_quan", list_cat = True)
+calculate_score(icd_codes =["K74.7101"],mapping="icd2024gm")
+calculate_score(icd_codes = ["K76.7", "I98.2", "K71.2", "K73", "C01", "C80", "B20", "U60.3", "G45.02", "I27.8", "J41.0", "M05.01", "F02.3", "E10.2", "E10.0", "I09.9", "N18.9", "I21.0", "G82.1", "K25.2", "I77.1"], mapping="icd2024gm_quan")
