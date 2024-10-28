@@ -171,6 +171,3 @@ def calculate_score(*, icd_codes: Union[str, list], mapping:str = "icd2024gm", e
 
     # Return the score and the list of scored categories
     return score, list(scored_categories)
-
-calculate_score(icd_codes =["K74.7101"],mapping="icd2024gm")
-calculate_score(icd_codes = ["K76.7", "I98.2", "K71.2", "K73", "C01", "C80", "B20", "U60.3", "G45.02", "I27.8", "J41.0", "M05.01", "F02.3", "E10.2", "E10.0", "I09.9", "N18.9", "I21.0", "G82.1", "K25.2", "I77.1"], mapping="icd2024gm_quan")
