@@ -1,10 +1,25 @@
 import json
 from typing import Union, List
+import pkgutil
+from pathlib import Path
 
-# Load the JSON data and create a dictionary
-file_path = 'codes.json'
-with open(file_path, 'r') as file:
-    mappingdata = json.load(file)
+try:
+    # Try to load with pkgutil (for installed packages)
+    data = pkgutil.get_data("cci_calculator", "codes.json")
+    if data is not None:
+        mappingdata = json.loads(data.decode("utf-8"))
+    else:
+        raise FileNotFoundError
+except (FileNotFoundError, AttributeError):
+    # Fall back to local file path with pathlib (for local development)
+    file_path = Path(__file__).parent / "codes.json"
+    with file_path.open("r") as file:
+        mappingdata = json.load(file)
+
+
+#file_path = 'codes.json'
+#with open(file_path, 'r') as file:
+#    mappingdata = json.load(file)
 
 def check_codes_exact(icd_codes: Union[str, List[str]], code_group: dict) -> bool:
     """
