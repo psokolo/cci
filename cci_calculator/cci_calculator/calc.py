@@ -3,23 +3,30 @@ from typing import Union, List
 import pkgutil
 from pathlib import Path
 
-try:
-    # Try to load with pkgutil (for installed packages)
-    data = pkgutil.get_data("cci_calculator", "codes.json")
-    if data is not None:
-        mappingdata = json.loads(data.decode("utf-8"))
-    else:
-        raise FileNotFoundError
-except (FileNotFoundError, AttributeError):
-    # Fall back to local file path with pathlib (for local development)
-    file_path = Path(__file__).parent / "codes.json"
-    with file_path.open("r") as file:
-        mappingdata = json.load(file)
+# Attempt to load the JSON file depending on the environment:
+# 1. Use `pkgutil` to load `codes.json` when the package is installed.
+# 2. Fallback to loading `codes.json` using `Path` for local development.
+# 3. For interactive development, users must manually specify the file path.
 
+# Uncomment the following for installed packages or local development:
+# try:
+#     data = pkgutil.get_data("cci_calculator", "codes.json")
+#     if data is not None:
+#         mappingdata = json.loads(data.decode("utf-8"))
+#     else:
+#         raise FileNotFoundError
+# except (FileNotFoundError, AttributeError):
+#     file_path = Path(__file__).parent / "codes.json"
+#     with file_path.open("r") as file:
+#         mappingdata = json.load(file)
 
-#file_path = 'codes.json'
-#with open(file_path, 'r') as file:
-#    mappingdata = json.load(file)
+# Uncomment the following for interactive environments (e.g., Jupyter, VSCode):
+file_path = '/Users/piotr/Documents/GitHub/cci/cci_calculator/cci_calculator/codes.json'
+with open(file_path, 'r') as file:
+    mappingdata = json.load(file)
+
+# Fetch the mapping names from the JSON data
+mapping_names = list(mappingdata.keys())
 
 def check_codes_exact(icd_codes: Union[str, List[str]], code_group: dict) -> bool:
     """
@@ -49,6 +56,9 @@ def check_codes_exact(icd_codes: Union[str, List[str]], code_group: dict) -> boo
     # Ensure icd_codes is a list
     if isinstance(icd_codes, str):
         icd_codes = [icd_codes]
+    
+    # Ensure icd_codes contains codes in upper case:
+    icd_codes = [code.upper() for code in icd_codes]
         
     condition = code_group["condition"]
     codes = code_group["codes"]
@@ -88,6 +98,9 @@ def check_codes_startswith(icd_codes: Union[str, List[str]], code_group: dict) -
     if isinstance(icd_codes, str):
         icd_codes = [icd_codes]
 
+    # Ensure icd_codes contains codes in upper case:
+    icd_codes = [code.upper() for code in icd_codes]
+
     condition = code_group["condition"]
     codes = code_group["codes"]
 
@@ -99,12 +112,14 @@ def check_codes_startswith(icd_codes: Union[str, List[str]], code_group: dict) -
         return all(any(code.startswith(prefix) for code in icd_codes) for group in codes for prefix in group)
     return False
 
-def calculate_score(*, icd_codes: Union[str, list], mapping:str = "icd2024gm", exact_codes:bool = False) -> tuple:
+def calculate_score(*, icd_codes: Union[str, list], mapping:str = "cci_icd2024gm", exact_codes:bool = False) -> tuple:
     '''
-        Calculates the Charlson comorbidity score (Deyo modification) based on a given set of ICD codes and a mapping file.
+        Calculates the chosen Comorbidity Score
+        For now, only the Charlson Comorbidity Index (Deyo modification) is available.
+        The score is calculated based on a given set of ICD codes and a mapping file ('codes.json')
 
         The score is determined by matching the ICD codes provided to specific categories in a predefined mapping file.
-        By default, it uses the ICD10-2024-GM codes, but alternate mappings (such as Quan's modification) are also available.
+        By default, it calculated the CCI based on the ICD10-2024-GM codes, but alternate mappings (such as Quan's modification) are also available.
 
         Parameters
         ----------
@@ -112,9 +127,9 @@ def calculate_score(*, icd_codes: Union[str, list], mapping:str = "icd2024gm", e
             A single ICD code or a list of ICD codes that will be evaluated for comorbidities.
         mapping : str, optional
             Identifier for the version of the ICD code mapping to be used. Valid options include:
-            - "icd2024gm"         : the 2024 version of the German Modification ICD-10 codes, mapped by the algorithm authors.
-            - "icd2024gm_quan"    : a variation based on Quan's implementation, applied to the 2024 ICD-10 GM codes.
-            - "icd2024_quan_orig" : Quan's mapping, as presented and explained in the following paper , DOI: 10.1097/01.mlr.0000182534.19832.83
+            - "cci_icd2024gm"         : the 2024 version of the German Modification ICD-10 codes, mapped by the algorithm authors.
+            - "cci_icd2024gm_quan"    : a variation based on Quan's implementation, applied to the 2024 ICD-10 GM codes.
+            - "cci_icd2024_quan_orig" : Quan's mapping, as presented and explained in the following paper , DOI: 10.1097/01.mlr.0000182534.19832.83
         exact_codes : bool, optional
             If True, checks for exact matches between ICD codes and the mapping data. If False, checks for prefix matches. Default is False, meaning
             that if any of the codes in the selected mapping list starts with any of the input codes, it scores
@@ -122,24 +137,32 @@ def calculate_score(*, icd_codes: Union[str, list], mapping:str = "icd2024gm", e
         Returns
         -------
         tuple: (score: int, categories: list)
-        - score: An integer representing the total Charlson comorbidity score (ranges from 0 to 29).
+        - score: An integer representing the total comorbidity score (for CCI it ranges from 0 to 29).
         - categories: A list of categories (comorbidities) that scored based on the input ICD codes.
 
         Notes
         -----
-        - Each category has a 'weight' in the mapping file which contributes to the total score.
-        - If multiple comorbidities are present (e.g., neoplasm and metastatic disease), only the more severe condition contributes to the score.
+        - Each category in the CCI has a 'weight' in the mapping file which, contributes to the total score.
+        - If multiple comorbidities are present (e.g., neoplasm and metastatic disease), in CCI, only the more severe condition contributes to the score.
         - The 'depends_on' field in the mapping file specifies these hierarchies. For example, if 'dm_simple' depends on 'dm_complicated', 
         the simpler condition will not contribute to the score if the more severe condition is present.
     '''
     
-    # According to the value of the 'mapping' argument, choose the right mapping
+    # Check if the mapping name (input as the "mapping" argument) is available and raise 
+    if mapping not in mapping_names:
+        raise ValueError(
+            f"Invalid mapping '{mapping}'. Available mappings are: {', '.join(mapping_names)}"
+            )
+
+    # Assuming correct mapping: According to the value of the 'mapping' argument, choose the right mapping
     data = mappingdata[mapping]
 
     # Validate input type
     ## The possible input is either a string when only one ICD Code is given or a list of strings when multiple codes are given
     if not isinstance(icd_codes, (str, list)) or (isinstance(icd_codes, list) and not all(isinstance(code, str) for code in icd_codes)):
-        return None
+        raise TypeError(
+            "Invalid type for 'icd_codes'. Expected a string or a list of strings."
+            )
     
     # Initialize variables for points and categories that scored
     score = 0
