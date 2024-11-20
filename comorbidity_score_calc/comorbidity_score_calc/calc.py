@@ -10,7 +10,7 @@ from pathlib import Path
 
 # Uncomment the following for installed packages or local development:
 # try:
-#     data = pkgutil.get_data("cci_calculator", "codes.json")
+#     data = pkgutil.get_data("comorbidity_score_calc", "codes.json")
 #     if data is not None:
 #         mappingdata = json.loads(data.decode("utf-8"))
 #     else:
@@ -21,7 +21,7 @@ from pathlib import Path
 #         mappingdata = json.load(file)
 
 # Uncomment the following for interactive environments (e.g., Jupyter, VSCode):
-file_path = '/Users/piotr/Documents/GitHub/cci/cci_calculator/cci_calculator/codes.json'
+file_path = '/Users/piotr/Documents/GitHub/cci/comorbidity_score_calc/comorbidity_score_calc/codes.json'
 with open(file_path, 'r') as file:
     mappingdata = json.load(file)
 
@@ -129,7 +129,7 @@ def calculate_score(*, icd_codes: Union[str, list], mapping:str = "cci_icd2024gm
             Identifier for the version of the ICD code mapping to be used. Valid options include:
             - "cci_icd2024gm"         : the 2024 version of the German Modification ICD-10 codes, mapped by the algorithm authors.
             - "cci_icd2024gm_quan"    : a variation based on Quan's implementation, applied to the 2024 ICD-10 GM codes.
-            - "cci_icd2024_quan_orig" : Quan's mapping, as presented and explained in the following paper , DOI: 10.1097/01.mlr.0000182534.19832.83
+            - "cci_icd_quan_orig"     : Quan's mapping, as presented and explained in the following paper , DOI: 10.1097/01.mlr.0000182534.19832.83
         exact_codes : bool, optional
             If True, checks for exact matches between ICD codes and the mapping data. If False, checks for prefix matches. Default is False, meaning
             that if any of the codes in the selected mapping list starts with any of the input codes, it scores
@@ -209,3 +209,5 @@ def calculate_score(*, icd_codes: Union[str, list], mapping:str = "cci_icd2024gm
 
     # Return the score and the list of scored categories
     return score, list(scored_categories)
+
+calculate_score(icd_codes = [], mapping = 'cci_icd2024gm')

@@ -3528,7 +3528,7 @@
         }
        
     },
-    "cci_icd2024_quan_orig": {
+    "cci_icd_quan_orig": {
         "liver_mild": {
             "name":"Mild liver disease",
             "weight": 1,
